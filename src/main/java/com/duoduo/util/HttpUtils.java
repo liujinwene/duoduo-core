@@ -553,6 +553,29 @@ public class HttpUtils {
 //		sendMessage();
 		receiveMessage();
 	}
+	
+	private static void sendMessage() throws IOException {
+		String url = "http://119.29.60.211:8888/sms.aspx";
+
+		//userId,account,password,mobile,content,sendTime,action,extno
+		String userId = "817";
+		String account = "278810263@qq.com";
+		String password = "abc12345666";
+		String mobile = "13760276565";
+		String content = "【多多优品】您好！您的订单已接受。回复：1-确认发货，2-取消订单。客服电话：0755-400111222。退订回复TD";
+		String action = "send";
+
+		Map<String, String> params = new HashMap<String, String>();
+		params.put("userId", userId);
+		params.put("account", account);
+		params.put("password", password);
+		params.put("mobile", mobile);
+		params.put("content", content);
+		params.put("action", action);
+
+		String responseStr = HttpUtils.get(url, params);
+		System.out.println(responseStr);
+	}
 
 	private static void receiveMessage() throws IOException {
 		String url = "http://119.29.60.211:8888/callApi.aspx";
@@ -569,29 +592,6 @@ public class HttpUtils {
 		params.put("password", password);
 		params.put("action", action);
 		
-		String responseStr = HttpUtils.get(url, params);
-		System.out.println(responseStr);
-	}
-
-	private static void sendMessage() throws IOException {
-		String url = "http://119.29.60.211:8888/sms.aspx";
-
-		//userId,account,password,mobile,content,sendTime,action,extno
-		String userId = "817";
-		String account = "278810263@qq.com";
-		String password = "abc12345666";
-		String mobile = "13760276565";
-		String content = "test";
-		String action = "send";
-
-		Map<String, String> params = new HashMap<String, String>();
-		params.put("userId", userId);
-		params.put("account", account);
-		params.put("password", password);
-		params.put("mobile", mobile);
-		params.put("content", content);
-		params.put("action", action);
-
 		String responseStr = HttpUtils.get(url, params);
 		System.out.println(responseStr);
 	}
