@@ -3,12 +3,12 @@ package com.duoduo.util;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.StopWatch;
+import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
@@ -30,13 +30,10 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
-
 @SuppressWarnings("deprecation")
-public class HttpUtils {
+public class DefaultHttpUtils {
 
-	protected static Logger logger = LoggerFactory.getLogger(HttpUtils.class);
+	protected static Logger logger = LoggerFactory.getLogger(DefaultHttpUtils.class);
 
 	/**
 	 * post请求 ，超时默认30秒
@@ -92,7 +89,6 @@ public class HttpUtils {
 			}
 			UrlEncodedFormEntity entity = new UrlEncodedFormEntity(formparams, HTTP.UTF_8);
 			HttpPost httppost = new HttpPost(url);
-			setHeaderInfo(httppost);
 			httppost.setEntity(entity);
 			ResponseHandler<String> responseHandler = new BasicResponseHandler();
 			retVal = new String(httpclient.execute(httppost, responseHandler).getBytes(HTTP.ISO_8859_1), HTTP.UTF_8);
@@ -135,8 +131,10 @@ public class HttpUtils {
 			}
 			UrlEncodedFormEntity entity = new UrlEncodedFormEntity(formparams, HTTP.UTF_8);
 			HttpPost httppost = new HttpPost(url);
-			setHeaderInfo(httppost);
 			httppost.setEntity(entity);
+			
+			printHttpInfo(httppost);
+			
 			ResponseHandler<String> responseHandler = new BasicResponseHandler();
 			if (isParseReturn) {
 				retVal = new String(httpclient.execute(httppost, responseHandler).getBytes(HTTP.ISO_8859_1),
@@ -155,13 +153,14 @@ public class HttpUtils {
 		return retVal;
 	}
 
-	/**
-	 * 设置头信息
-	 * 
-	 * @param httppost
-	 */
-	private static void setHeaderInfo(HttpPost httppost) {
-
+	private static void printHttpInfo(HttpPost httppost) {
+		Header[] headers = httppost.getAllHeaders();
+		if(headers != null) {
+			for(Header header : headers) {
+				System.out.println(header.getName() + "=" + header.getValue());
+			}
+		}
+		
 	}
 
 	@SuppressWarnings("resource")
@@ -179,7 +178,6 @@ public class HttpUtils {
 			StringEntity params = new StringEntity(json, encoding);
 			httppost.addHeader("content-type", "application/json");
 			httppost.setEntity(params);
-			setHeaderInfo(httppost);
 			ResponseHandler<String> responseHandler = new BasicResponseHandler();
 			if (objects == null || objects.length == 0) {
 				retVal = new String(httpclient.execute(httppost, responseHandler).getBytes(HTTP.ISO_8859_1),
@@ -234,7 +232,7 @@ public class HttpUtils {
 		}
 		return retVal;
 	}
-
+	
 	/**
 	 * get请求
 	 * 
@@ -390,6 +388,7 @@ public class HttpUtils {
 			UrlEncodedFormEntity entity = new UrlEncodedFormEntity(formparams, charset);
 			HttpPost httppost = new HttpPost(url);
 			httppost.setEntity(entity);
+			
 			HttpResponse resp = httpclient.execute(httppost);
 			retVal = EntityUtils.toString(resp.getEntity(), charset);
 		} catch (IOException e) {
@@ -540,59 +539,4 @@ public class HttpUtils {
 		return retVal;
 	}
 
-	public static String post(String url, Object paramObject) {
-		JSONObject jsonObject = JSON.parseObject(JSONObject.toJSONString(paramObject));
-		Map<String, String> params = new HashMap<>();
-		jsonObject.forEach((k,v)->{
-			params.put(k, v.toString());
-		});
-		return post(url, params);
-	}
-
-	public static void main(String[] args) throws IOException {
-//		sendMessage();
-		receiveMessage();
-	}
-	
-	private static void sendMessage() throws IOException {
-		String url = "http://119.29.60.211:8888/sms.aspx";
-
-		//userId,account,password,mobile,content,sendTime,action,extno
-		String userId = "817";
-		String account = "278810263@qq.com";
-		String password = "abc12345666";
-		String mobile = "13760276565";
-		String content = "【多多优品】您好！您的订单已接受。回复：1-确认发货，2-取消订单。客服电话：0755-400111222。退订回复TD";
-		String action = "send";
-
-		Map<String, String> params = new HashMap<String, String>();
-		params.put("userId", userId);
-		params.put("account", account);
-		params.put("password", password);
-		params.put("mobile", mobile);
-		params.put("content", content);
-		params.put("action", action);
-
-		String responseStr = HttpUtils.get(url, params);
-		System.out.println(responseStr);
-	}
-
-	private static void receiveMessage() throws IOException {
-		String url = "http://119.29.60.211:8888/callApi.aspx";
-		
-		//userId,account,password,action
-		String userId = "817";
-		String account = "278810263@qq.com";
-		String password = "abc12345666";
-		String action = "query";
-		
-		Map<String, String> params = new HashMap<String, String>();
-		params.put("userId", userId);
-		params.put("account", account);
-		params.put("password", password);
-		params.put("action", action);
-		
-		String responseStr = HttpUtils.get(url, params);
-		System.out.println(responseStr);
-	}
 }
