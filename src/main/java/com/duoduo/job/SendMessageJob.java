@@ -2,6 +2,8 @@ package com.duoduo.job;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -14,7 +16,8 @@ import com.duoduo.thirdorder.service.OrderService;
 
 @Service
 public class SendMessageJob {
-
+	private static Logger LOGGER = LoggerFactory.getLogger(SendMessageJob.class);
+	
 	@Autowired
 	private OrderService orderService;
 	@Autowired
@@ -32,7 +35,7 @@ public class SendMessageJob {
 					try {
 						executeService.sendMessage(order);
 					} catch(Exception e) {
-						System.err.println("sendMessage exception.orderId=" + order.getOrder().getOrder_id());
+						LOGGER.info("sendMessage exception.orderId=" + order.getOrder().getOrder_id());
 						e.printStackTrace();
 					}
 				}

@@ -23,4 +23,14 @@ public class OrderDaoImpl implements OrderDao {
 		return dsl.selectFrom(Tables.ORDER).where(Tables.ORDER.TASK_ID.eq(taskId)).fetchOne();
 	}
 
+	@Override
+	public OrderRecord findByOrderId(String orderId) {
+		return dsl.selectFrom(Tables.ORDER).where(Tables.ORDER.ORDER_ID.eq(orderId)).fetchOne();
+	}
+
+	@Override
+	public void update(OrderRecord orderRecord) {
+		dsl.executeUpdate(orderRecord);
+	}
+
 }

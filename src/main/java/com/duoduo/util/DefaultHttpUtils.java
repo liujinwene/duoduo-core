@@ -157,7 +157,7 @@ public class DefaultHttpUtils {
 		Header[] headers = httppost.getAllHeaders();
 		if(headers != null) {
 			for(Header header : headers) {
-				System.out.println(header.getName() + "=" + header.getValue());
+				logger.info(header.getName() + "=" + header.getValue());
 			}
 		}
 		

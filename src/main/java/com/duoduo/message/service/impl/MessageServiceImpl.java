@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.lang.StringUtils;
 import org.dom4j.Document;
@@ -13,9 +15,12 @@ import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.jooq.util.derby.sys.Sys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.duoduo.job.SendMessageJob;
 import com.duoduo.message.resp.ReceiveMessageResp;
 import com.duoduo.message.resp.SendMessageResp;
 import com.duoduo.message.service.MessageService;
@@ -27,24 +32,36 @@ import com.duoduo.util.GsonUtil;
 
 @Service
 public class MessageServiceImpl implements MessageService {
+	private static Logger LOGGER = LoggerFactory.getLogger(MessageServiceImpl.class);
+	
+	private static final Lock CREATE_ORDER_LOCK = new ReentrantLock();
+
+
 	private static final String sendUrl = "http://119.29.60.211:8888/sms.aspx";
 	private static final String receiveUrl = "http://119.29.60.211:8888/callApi.aspx";
 
 	private static final String userId = "817";
 	private static final String account = "278810263@qq.com";
 	private static final String password = "abc12345666";
-	
-	private static final String sendContent = "【多多优品】您好！您的订单已接收。回复：1-确认发货，2-取消订单。客服电话：0755-82347124";
-	
+
+	private static final String sendContent = "【多多优品】您好！您购买的智能蓝牙太阳眼镜，订单已接收。回复：1-确认发货，2-取消订单。客服电话：0755-82347124";
+
 	private static final String sendAction = "send";
 	private static final String queryAction = "query";
-	
+
 	@Autowired
 	private OrderDao orderDao;
 
 	@Override
 	public SendMessageResp sendMessage(ThirdOrderResp order) {
 		try {
+			CREATE_ORDER_LOCK.lock();
+			OrderRecord existOrderRecord = orderDao.findByOrderId(order.getOrder().getOrder_id());
+			if(existOrderRecord != null) {
+				LOGGER.info("orderRecord is exist.orderId=" + order.getOrder().getOrder_id());
+				return null;
+			}
+
 			Map<String, String> params = new HashMap<String, String>();
 			params.put("userId", userId);
 			params.put("account", account);
@@ -54,21 +71,27 @@ public class MessageServiceImpl implements MessageService {
 			params.put("action", sendAction);
 
 			String responseStr = DefaultHttpUtils.get(sendUrl, params);
-			System.out.println(responseStr);
+			LOGGER.info(responseStr);
 			SendMessageResp sendMessageResp = getSendMessageResp(responseStr);
-			System.out.println(GsonUtil.toJson(sendMessageResp));
+			LOGGER.info(GsonUtil.toJson(sendMessageResp));
 			//create orderRecord
 			if(sendMessageResp != null && StringUtils.isNotBlank(sendMessageResp.getTaskID())) {
 				OrderRecord orderRecord = new OrderRecord();
 				orderRecord.setCreateTime(new Timestamp(System.currentTimeMillis()));
 				orderRecord.setOrderJson(GsonUtil.toJson(order));
 				orderRecord.setTaskId(sendMessageResp.getTaskID());
+				orderRecord.setContent(sendContent);
+				orderRecord.setMobile(order.getOrder().getPost_tel());
+				orderRecord.setOrderId(order.getOrder().getOrder_id());
+				orderRecord.setSendMessageJson(GsonUtil.toJson(sendMessageResp));
 				orderDao.create(orderRecord);
 			}
 			return sendMessageResp;
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new RuntimeException(e);
+		} finally {
+			CREATE_ORDER_LOCK.unlock();
 		}
 	}
 
@@ -82,9 +105,9 @@ public class MessageServiceImpl implements MessageService {
 			params.put("action", queryAction);
 
 			String responseStr = DefaultHttpUtils.get(receiveUrl, params);
-			System.out.println(responseStr);
+			LOGGER.info(responseStr);
 			List<ReceiveMessageResp> receiveMessages = listReceiveMessage(responseStr);
-			System.out.println(GsonUtil.toJson(receiveMessages));
+			LOGGER.info(GsonUtil.toJson(receiveMessages));
 			return receiveMessages;
 		} catch (Exception e) {
 			e.printStackTrace();

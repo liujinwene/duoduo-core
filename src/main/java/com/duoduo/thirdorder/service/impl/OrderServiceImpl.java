@@ -1,9 +1,12 @@
 package com.duoduo.thirdorder.service.impl;
 
+import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +26,7 @@ import com.duoduo.util.HttpUtil;
 
 @Service
 public class OrderServiceImpl implements OrderService {
+	private static Logger LOGGER = LoggerFactory.getLogger(OrderServiceImpl.class);
 	
 	private static final String MESSAGE_FORMAT = "【短信回复:%s】";
 
@@ -32,13 +36,13 @@ public class OrderServiceImpl implements OrderService {
 	String final_status = "1";
 	String order = "create_time";
 	String is_desc = "is_desc";
+	String page = "0";
+	String pageSize = "100";
 	
 	@Autowired
 	private ConfigurationService configurationService;
 	@Autowired
 	private OrderDao orderDao;
-	@Autowired
-	private ReceiveMessageService receiveMessageService;
 
 	private String getToken() {
 		return configurationService.getValue(ConfigName.TOKEN);
@@ -64,20 +68,22 @@ public class OrderServiceImpl implements OrderService {
 		params.put("order", order);
 		params.put("is_desc", is_desc);
 		params.put("start_time", start_time);
+		params.put("page", page);
+		params.put("pageSize", pageSize);
 
 		String responseStr = HttpUtil.get(listOrderUrl, getHeaderInfo(), params);
-		System.out.println(responseStr);
+		LOGGER.info("responseStr=" + responseStr);
 		return GsonUtil.fromJson(responseStr, ListThirdOrderResp.class);
 	}
 
 	@Override
 	public BaseThirdOrderResp updateOrder(SubThirdOrder subOrder, String content) {
 		if(StringUtils.isBlank(content)) {
-			System.err.println("receive content is null.orderId=" + subOrder.getOrder_id());
+			LOGGER.info("receive content is null.orderId=" + subOrder.getOrder_id());
 			return null;
 		}
 		if(subOrder.getBuyer_words().contains(content)) {
-			System.err.println("receive content is exist.orderId=" + subOrder.getOrder_id());
+			LOGGER.info("receive content is exist.orderId=" + subOrder.getOrder_id());
 			return null;
 		}
 		
@@ -129,9 +135,14 @@ public class OrderServiceImpl implements OrderService {
 
 	@Override
 	public void updateOrder(ReceiveMessageResp receiveMessage) {
-		receiveMessageService.create(receiveMessage);
 		OrderRecord orderRecord = orderDao.findByTaskId(receiveMessage.getTaskid());
 		if(orderRecord != null) {
+			//update orderRecord
+			orderRecord.setReceiveContent(receiveMessage.getContent());
+			orderRecord.setReceiveMessageJson(GsonUtil.toJson(receiveMessage));
+			orderRecord.setReceiveTime(new Timestamp(System.currentTimeMillis()));
+			orderDao.update(orderRecord);
+			//update thirdOrder
 			ThirdOrderResp orderResp = GsonUtil.fromJson(orderRecord.getOrderJson(), ThirdOrderResp.class);
 			updateOrder(orderResp.getOrder(), String.format(MESSAGE_FORMAT, receiveMessage.getContent()));
 		}
