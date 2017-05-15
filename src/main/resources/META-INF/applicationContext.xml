@@ -17,6 +17,7 @@
 
 	<task:scheduled-tasks>
 		<task:scheduled ref="sendMessageJob" method="execute" cron="0/5 * * * * ? " />
+		<task:scheduled ref="receiveMessageJob" method="execute" cron="0/10 * * * * ? " />
 	</task:scheduled-tasks>
 	
 	<import resource="classpath:META-INF/database.xml"/>

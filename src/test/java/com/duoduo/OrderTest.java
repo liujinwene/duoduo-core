@@ -2,15 +2,13 @@ package com.duoduo;
 
 import java.io.IOException;
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 import org.jooq.DSLContext;
-import org.jooq.Result;
+import org.jooq.util.derby.sys.Sys;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -20,7 +18,8 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 
 import com.duoduo.base.core.CoreServerApp;
-import com.duoduo.order.po.Order;
+import com.duoduo.configuration.service.ConfigurationService;
+import com.duoduo.order.dao.OrderDao;
 import com.duoduo.schema.Tables;
 import com.duoduo.schema.tables.records.OrderRecord;
 import com.duoduo.thirdorder.resp.ListThirdOrderResp;
@@ -37,26 +36,33 @@ public class OrderTest {
 	
 	@Autowired
 	private DSLContext dsl;
+	@Autowired
+	private OrderDao orderDao;
+	@Autowired
+	private ConfigurationService configService;
+	
+	
+	@Test
+	public void configTest() {
+		String token = configService.getValue("token");
+		System.out.println(token);
+	}
 	
 	@Test
 	@Ignore
 	public void fetchTest() {
-		List<Order> orders = new ArrayList<Order>();
-		Result<OrderRecord> result = dsl.selectFrom(Tables.ORDER).fetch();
-		result.map(r -> {
-			System.out.println(r.getId());
-			return r;
-		});
+		OrderRecord order = orderDao.findByTaskId("1");
+		System.out.println(order.getOrderJson());
 	}
 	
 	@Test
+	@Ignore
 	public void createTest() {
-		OrderRecord order = new OrderRecord();
-		order.setTaskId("2");
-		order.setOrderJson("test");
-		order.setCreateTime(new Timestamp(System.currentTimeMillis()));
-		int result = dsl.executeUpdate(order);
-		System.err.println(result);
+		OrderRecord orderRecord = new OrderRecord();
+		orderRecord.setOrderJson("{order:{id:2}}");
+		orderRecord.setTaskId("2");
+		orderRecord.setCreateTime(new Timestamp(System.currentTimeMillis()));
+		orderDao.create(orderRecord);
 	}
 
 	@Test

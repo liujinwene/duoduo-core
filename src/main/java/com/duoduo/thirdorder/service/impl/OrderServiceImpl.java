@@ -4,17 +4,27 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.duoduo.configuration.constant.ConfigName;
+import com.duoduo.configuration.service.ConfigurationService;
+import com.duoduo.message.resp.ReceiveMessageResp;
+import com.duoduo.order.dao.OrderDao;
+import com.duoduo.receivemessage.service.ReceiveMessageService;
+import com.duoduo.schema.tables.records.OrderRecord;
 import com.duoduo.thirdorder.resp.BaseThirdOrderResp;
 import com.duoduo.thirdorder.resp.ListThirdOrderResp;
 import com.duoduo.thirdorder.resp.SubThirdOrder;
+import com.duoduo.thirdorder.resp.ThirdOrderResp;
 import com.duoduo.thirdorder.service.OrderService;
 import com.duoduo.util.GsonUtil;
 import com.duoduo.util.HttpUtil;
 
 @Service
 public class OrderServiceImpl implements OrderService {
+	
+	private static final String MESSAGE_FORMAT = "【短信回复:%s】";
 
 	String listOrderUrl = "https://shop.snssdk.com/order/order/list";
 	String updateOrderUrl = "https://shop.snssdk.com/order/order/edit";
@@ -22,11 +32,31 @@ public class OrderServiceImpl implements OrderService {
 	String final_status = "1";
 	String order = "create_time";
 	String is_desc = "is_desc";
-	String start_time = "2017-05-13%2009:42:49";
+	
+	@Autowired
+	private ConfigurationService configurationService;
+	@Autowired
+	private OrderDao orderDao;
+	@Autowired
+	private ReceiveMessageService receiveMessageService;
 
+	private String getToken() {
+		return configurationService.getValue(ConfigName.TOKEN);
+	}
+	
+	private String getCookie() {
+		return configurationService.getValue(ConfigName.COOKIE);
+	}
+	
+	private String getStartTime() {
+		return configurationService.getValue(ConfigName.EXPIRED_TIME);
+	}
+	
+	
 	@Override
 	public ListThirdOrderResp listOrder() {
-		String __token = "39ed2a4393332e132021bbd8751b44f5";
+		String __token = getToken();
+		String start_time = getStartTime();
 
 		Map<String, String> params = new HashMap<String, String>();
 		params.put("__token", __token);
@@ -51,7 +81,7 @@ public class OrderServiceImpl implements OrderService {
 			return null;
 		}
 		
-		String __token= "39ed2a4393332e132021bbd8751b44f5";
+		String __token= getToken();
 
 		Map<String, String> params = convertToOrderUpdateParam(subOrder, __token, content);
 		String responseStr = HttpUtil.post(updateOrderUrl, getHeaderInfo(), params);
@@ -87,8 +117,8 @@ public class OrderServiceImpl implements OrderService {
 		return params;
 	}
 
-	private static Map<String, String> getHeaderInfo() {
-		String cookie = "PHPSESSID=647j8s3tm5n0bdbj8tb0pe3t23";
+	private Map<String, String> getHeaderInfo() {
+		String cookie = getCookie();
 		String userAgent = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36";
 
 		Map<String, String> headers = new HashMap<String, String>();
@@ -97,4 +127,13 @@ public class OrderServiceImpl implements OrderService {
 		return headers;
 	}
 
+	@Override
+	public void updateOrder(ReceiveMessageResp receiveMessage) {
+		receiveMessageService.create(receiveMessage);
+		OrderRecord orderRecord = orderDao.findByTaskId(receiveMessage.getTaskid());
+		if(orderRecord != null) {
+			ThirdOrderResp orderResp = GsonUtil.fromJson(orderRecord.getOrderJson(), ThirdOrderResp.class);
+			updateOrder(orderResp.getOrder(), String.format(MESSAGE_FORMAT, receiveMessage.getContent()));
+		}
+	}
 }

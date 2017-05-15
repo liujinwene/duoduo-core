@@ -1,20 +1,27 @@
 package com.duoduo.message.service.impl;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang.StringUtils;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
+import org.jooq.util.derby.sys.Sys;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.duoduo.message.resp.ReceiveMessageResp;
 import com.duoduo.message.resp.SendMessageResp;
 import com.duoduo.message.service.MessageService;
+import com.duoduo.order.dao.OrderDao;
+import com.duoduo.schema.tables.records.OrderRecord;
+import com.duoduo.thirdorder.resp.ThirdOrderResp;
 import com.duoduo.util.DefaultHttpUtils;
 import com.duoduo.util.GsonUtil;
 
@@ -27,19 +34,22 @@ public class MessageServiceImpl implements MessageService {
 	private static final String account = "278810263@qq.com";
 	private static final String password = "abc12345666";
 	
-	private static final String sendContent = "【多多优品】您好！您的订单已接收。回复：1-确认发货，2-取消订单。客服电话：0755-82347124 。退订回复TD";
+	private static final String sendContent = "【多多优品】您好！您的订单已接收。回复：1-确认发货，2-取消订单。客服电话：0755-82347124";
 	
 	private static final String sendAction = "send";
 	private static final String queryAction = "query";
+	
+	@Autowired
+	private OrderDao orderDao;
 
 	@Override
-	public SendMessageResp sendMessage(String mobile) {
+	public SendMessageResp sendMessage(ThirdOrderResp order) {
 		try {
 			Map<String, String> params = new HashMap<String, String>();
 			params.put("userId", userId);
 			params.put("account", account);
 			params.put("password", password);
-			params.put("mobile", mobile);
+			params.put("mobile", order.getOrder().getPost_tel());
 			params.put("content", sendContent);
 			params.put("action", sendAction);
 
@@ -47,6 +57,14 @@ public class MessageServiceImpl implements MessageService {
 			System.out.println(responseStr);
 			SendMessageResp sendMessageResp = getSendMessageResp(responseStr);
 			System.out.println(GsonUtil.toJson(sendMessageResp));
+			//create orderRecord
+			if(sendMessageResp != null && StringUtils.isNotBlank(sendMessageResp.getTaskID())) {
+				OrderRecord orderRecord = new OrderRecord();
+				orderRecord.setCreateTime(new Timestamp(System.currentTimeMillis()));
+				orderRecord.setOrderJson(GsonUtil.toJson(order));
+				orderRecord.setTaskId(sendMessageResp.getTaskID());
+				orderDao.create(orderRecord);
+			}
 			return sendMessageResp;
 		} catch (Exception e) {
 			e.printStackTrace();
